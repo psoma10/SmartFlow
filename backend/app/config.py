@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,7 @@ class SignalConfig:
     starvation_seconds: float = 90.0
     emergency_green: float = 18.0
     emergency_clearance: float = 4.0
+    manual_emergency_max_seconds: float = 60.0
     baseline_fixed_green: float = 30.0
 
     def to_dict(self) -> dict[str, Any]:
@@ -154,7 +156,15 @@ def load_config() -> AppConfig:
     return config
 
 
+_save_lock = threading.Lock()
+
+
 def save_config(config: AppConfig) -> AppConfig:
+    """Atomic write: a crash or a concurrent writer can never leave a truncated
+    config.json behind (which would otherwise brick the next server start)."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(json.dumps(config.to_dict(), indent=2))
+    with _save_lock:
+        tmp = CONFIG_FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(config.to_dict(), indent=2))
+        tmp.replace(CONFIG_FILE)
     return config

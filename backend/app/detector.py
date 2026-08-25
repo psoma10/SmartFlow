@@ -42,6 +42,9 @@ class VehicleDetector:
     """
 
     def __init__(self, config: DetectorConfig) -> None:
+        from ._lzma_shim import ensure_lzma_importable
+
+        ensure_lzma_importable()
         from ultralytics import YOLO  # imported lazily: heavy dependency
 
         self._config = config

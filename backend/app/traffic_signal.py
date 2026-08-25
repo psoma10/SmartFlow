@@ -88,16 +88,20 @@ class AdaptiveSignalController:
         self._emergency_lane: str | None = None
         self._emergency_hold = 0.0
         self._manual_emergency: str | None = None
+        self._manual_age = 0.0
         self._priorities: tuple[LanePriority, ...] = ()
 
     # ---- external triggers -------------------------------------------------
     def trigger_emergency(self, lane_id: str) -> None:
         if lane_id in self._wait:
             self._manual_emergency = lane_id
+            self._manual_age = 0.0
 
     def clear_emergency(self) -> None:
         self._manual_emergency = None
+        self._manual_age = 0.0
         self._emergency_hold = 0.0
+        self._emergency_lane = None
 
     # ---- main tick ---------------------------------------------------------
     def step(self, dt: float, lane_stats: Sequence[LaneStats]) -> SignalState:
@@ -105,13 +109,26 @@ class AdaptiveSignalController:
         self._accumulate_wait(dt)
         self._priorities = self._score(stats)
 
+        if self._manual_emergency:
+            # An operator's manual trigger must not be able to gridlock the
+            # intersection forever if nobody presses Clear.
+            self._manual_age += dt
+            if self._manual_age >= self._config.manual_emergency_max_seconds:
+                self._manual_emergency = None
+                self._manual_age = 0.0
+
         detected = next((s.id for s in lane_stats if s.emergency), None)
         emergency_lane = self._manual_emergency or detected
         self._update_emergency(dt, emergency_lane)
 
+        green_elapsed = self._phase_duration - self._remaining
+        can_preempt = self._phase == GREEN and green_elapsed >= self._config.min_green
+
         self._remaining -= dt
-        if self._emergency_lane and self._phase == GREEN and self._active != self._emergency_lane:
-            # Preempt: cut the running green short and route to the emergency approach.
+        if self._emergency_lane and can_preempt and self._active != self._emergency_lane:
+            # Preempt: cut the running green short (but never below min_green,
+            # so a flickering detection can't collapse the phase to near-zero)
+            # and route to the emergency approach.
             self._pending = self._emergency_lane
             self._begin(YELLOW, self._config.yellow)
         elif self._remaining <= 0.0:
@@ -171,9 +188,13 @@ class AdaptiveSignalController:
         config = self._config
         if self._emergency_lane == lane_id:
             return config.emergency_green
+        # Absolute demand, not share-of-the-winner: the winning lane's score is
+        # near the theoretical max (weight_density + weight_queue*1 + weight_wait)
+        # only under real congestion, so scaling by it made every empty
+        # intersection get max_green. Scale by the score's own ceiling instead.
         scores = {p.lane_id: p.score for p in self._priorities}
-        top = max(scores.values()) if scores else 0.0
-        share = (scores.get(lane_id, 0.0) / top) if top > 0 else 0.0
+        ceiling = config.weight_density + config.weight_queue + config.weight_wait
+        share = min(1.0, scores.get(lane_id, 0.0) / ceiling) if ceiling > 0 else 0.0
         span = max(0.0, config.max_green - config.min_green)
         return round(config.min_green + share * span, 1)
 
