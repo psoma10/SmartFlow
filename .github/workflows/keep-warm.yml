@@ -1,0 +1,17 @@
+name: Keep backend warm
+
+# Render's free tier spins the service down after ~15 min of no HTTP traffic,
+# which means a ~60-90s cold start (reloading the model, opening the video)
+# on the next request — bad for a live demo. This pings the health endpoint
+# often enough that Render never sees it go idle.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping SmartFlow backend health endpoint
+        run: curl -sf --max-time 25 https://smartflow-backend-qr0v.onrender.com/api/health || true
