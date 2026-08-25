@@ -74,6 +74,26 @@ button:active { transform: translateY(1px); }
 .conn-pill.ok::before { animation: pulse-dot 1.6s ease-in-out infinite; }
 @keyframes pulse-dot { 50% { opacity: 0.35; } }
 
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 700px) {
+  .stat-strip { grid-template-columns: repeat(2, 1fr); }
+}
+.stat-tile {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 18px; display: flex; flex-direction: column; gap: 2px;
+}
+.stat-tile.warn { border-color: rgba(251, 191, 36, 0.4); }
+.stat-tile-value {
+  font-size: 1.9rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
+}
+.stat-tile.warn .stat-tile-value { color: var(--yellow); }
+.stat-tile-label { font-size: 0.75rem; color: var(--text-dim); }
+
 .app-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
@@ -85,6 +105,9 @@ button:active { transform: translateY(1px); }
 }
 
 .app-video-col, .app-lanes-col { display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 1400px) {
+  .app-lanes-col { display: grid; grid-template-columns: 1fr 1fr; align-content: start; }
+}
 
 .video-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .video-frame { position: relative; aspect-ratio: 16 / 9; background: #000; display: flex; align-items: center; justify-content: center; }
@@ -135,8 +158,8 @@ button:active { transform: translateY(1px); }
   background: var(--panel);
   border: 1px solid var(--border);
   border-left: 4px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
+  border-radius: 12px;
+  padding: 16px 20px;
 }
 .lane-card.congestion-low { border-left-color: var(--green); }
 .lane-card.congestion-medium { border-left-color: var(--yellow); }
@@ -145,7 +168,16 @@ button:active { transform: translateY(1px); }
 .lane-card.placeholder { color: var(--text-dim); text-align: center; }
 
 .lane-card-header { display: flex; justify-content: space-between; align-items: center; }
+.lane-card-header-right { display: flex; align-items: center; gap: 8px; }
 .lane-name { font-weight: 700; font-size: 1rem; }
+
+.emergency-icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer;
+}
+.emergency-icon-btn:hover { border-color: var(--red); color: var(--red); }
+
 .signal-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 .signal-dot.signal-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
 .signal-dot.signal-yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
@@ -167,12 +199,17 @@ button:active { transform: translateY(1px); }
 }
 .lane-card.active .lane-countdown { visibility: visible; }
 
-.lane-breakdown { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.lane-breakdown { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
 .lane-chip {
+  display: inline-flex; align-items: center; gap: 5px;
   background: var(--panel-alt); border: 1px solid var(--border);
-  border-radius: 6px; padding: 2px 8px; font-size: 0.75rem; color: var(--text-dim);
+  border-radius: 6px; padding: 3px 9px; font-size: 0.75rem; color: var(--text-dim);
 }
+.lane-chip svg { color: var(--text-dim); flex-shrink: 0; }
+.lane-chip-count { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.lane-chip-label { text-transform: capitalize; }
 .lane-chip.empty { font-style: italic; }
+.vehicle-icon-fallback { display: inline-block; border-radius: 50%; background: currentColor; opacity: 0.5; }
 
 .lane-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
 .lane-stats-grid .stat-label { display: block; font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; }
@@ -188,8 +225,3 @@ button:active { transform: translateY(1px); }
   background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.35);
   border-radius: 6px; padding: 6px 8px; text-align: center;
 }
-.emergency-btn {
-  width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
-  background: transparent; color: var(--text-dim); font-size: 0.78rem; cursor: pointer;
-}
-.emergency-btn:hover { border-color: var(--red); color: var(--red); }

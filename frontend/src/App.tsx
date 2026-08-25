@@ -5,6 +5,7 @@ import { VideoStream } from "./components/VideoStream";
 import { VideoSourceSelector } from "./components/VideoSourceSelector";
 import { LaneCard } from "./components/LaneCard";
 import { SignalPanel } from "./components/SignalPanel";
+import { StatStrip } from "./components/StatStrip";
 import { TrafficChart, type HistoryPoint } from "./components/TrafficChart";
 import "./App.css";
 
@@ -53,6 +54,8 @@ function App() {
           </span>
         </div>
       </header>
+
+      {frame && <StatStrip lanes={frame.lanes} signal={frame.signal} />}
 
       <main className="app-grid">
         <section className="app-video-col">
