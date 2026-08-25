@@ -101,7 +101,12 @@ class TrafficPipeline:
         self._analyzer = LaneAnalyzer(config.lanes)
         self._signal = AdaptiveSignalController(config.lanes, config.signal)
         self._source = VideoSource(config.source, config.loop_video)
-        self._frame_size = self._source.size  # cached: avoid querying VideoCapture from another thread
+        native_w, native_h = self._source.size
+        if native_w > config.max_frame_width > 0:
+            scale = config.max_frame_width / native_w
+            self._frame_size = (config.max_frame_width, max(2, round(native_h * scale) // 2 * 2))
+        else:
+            self._frame_size = (native_w, native_h)
         self._geometry = LaneGeometry(config.lanes, *self._frame_size)
 
         self._lock = threading.Lock()
@@ -164,6 +169,8 @@ class TrafficPipeline:
                 log.info("video source exhausted, stopping pipeline")
                 self._running = False
                 break
+            if frame.shape[1] != self._frame_size[0]:
+                frame = cv2.resize(frame, self._frame_size, interpolation=cv2.INTER_AREA)
 
             try:
                 detections = self._detector.track(frame)
@@ -229,18 +236,19 @@ _EMERGENCY_BOX = (66, 135, 245)    # BGR for emergency orange, distinct from con
 def _annotate(frame: np.ndarray, tracks: tuple[TrackState, ...], lanes: tuple[LaneStats, ...],
               signal: SignalState, geometry: LaneGeometry) -> np.ndarray:
     canvas = frame.copy()
-    overlay = canvas.copy()
 
     # Only paint zones that actually need attention — filling every lane the same
-    # green when traffic is light just tints the whole frame and hides the scene.
+    # green when traffic is light just tints the whole frame and hides the
+    # scene. The overlay buffer (a third full-frame copy) is only allocated
+    # when a fill is actually needed, since "everything low" is the common case.
     for lane in lanes:
         alpha = _FILL_ALPHA[lane.congestion]
         if alpha <= 0.0:
             continue
         polygon = geometry.polygon(lane.id).astype(np.int32)
+        overlay = canvas.copy()
         cv2.fillPoly(overlay, [polygon], LANE_COLORS[lane.congestion])
         cv2.addWeighted(overlay, alpha, canvas, 1 - alpha, 0, dst=canvas)
-        overlay = canvas.copy()
 
     for lane in lanes:
         polygon = geometry.polygon(lane.id).astype(np.int32)

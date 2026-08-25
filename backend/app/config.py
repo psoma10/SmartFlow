@@ -98,6 +98,12 @@ class AppConfig:
     loop_video: bool = True
     target_fps: float = 20.0
     jpeg_quality: int = 75
+    # Frames wider than this are downscaled before detection/annotation. A 4K
+    # source held as three full-frame copies per cycle (raw/canvas/overlay) is
+    # the single largest memory cost in the pipeline — this bounds it on
+    # memory-constrained hosts without touching accuracy, since YOLO
+    # letterboxes to imgsz regardless of input size.
+    max_frame_width: int = 960
     detector: DetectorConfig = field(default_factory=DetectorConfig)
     signal: SignalConfig = field(default_factory=SignalConfig)
     lanes: tuple[LaneConfig, ...] = field(default_factory=lambda: DEFAULT_LANES)
