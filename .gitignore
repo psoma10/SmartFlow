@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Models & media (fetched or supplied locally)
+models/*.pt
+videos/*.mp4
+videos/*.mov
+videos/*.avi
+output/
+.dist/
+yolo11*.pt
+
+# Local config & OS
+config/smartflow.json
+.DS_Store
+.env
