@@ -14,6 +14,7 @@ models/*.pt
 videos/*.mp4
 videos/*.mov
 videos/*.avi
+!videos/traffic.mp4
 output/
 .dist/
 yolo11*.pt
