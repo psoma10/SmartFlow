@@ -1,4 +1,4 @@
-import type { HealthResponse, TelemetryFrame } from "./types";
+import type { HealthResponse, SourcesResponse, TelemetryFrame } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -22,6 +22,21 @@ export async function triggerEmergency(laneId: string): Promise<void> {
 export async function clearEmergency(): Promise<void> {
   const res = await fetch(`${API_BASE}/api/emergency/clear`, { method: "POST" });
   if (!res.ok) throw new Error(`clear failed: ${res.status}`);
+}
+
+export async function fetchSources(): Promise<SourcesResponse> {
+  const res = await fetch(`${API_BASE}/api/sources`);
+  if (!res.ok) throw new Error(`sources fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function switchSource(source: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/config/source`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source }),
+  });
+  if (!res.ok) throw new Error(`source switch failed: ${res.status}`);
 }
 
 type TelemetryHandler = (frame: TelemetryFrame) => void;

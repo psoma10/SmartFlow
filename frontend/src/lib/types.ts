@@ -50,3 +50,13 @@ export interface HealthResponse {
   frame_index: number;
   fps: number;
 }
+
+export interface VideoSourceOption {
+  id: string;
+  label: string;
+}
+
+export interface SourcesResponse {
+  sources: VideoSourceOption[];
+  active: string;
+}

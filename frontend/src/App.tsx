@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { connectTelemetry, triggerEmergency } from "./lib/api";
 import type { TelemetryFrame } from "./lib/types";
 import { VideoStream } from "./components/VideoStream";
+import { VideoSourceSelector } from "./components/VideoSourceSelector";
 import { LaneCard } from "./components/LaneCard";
 import { SignalPanel } from "./components/SignalPanel";
 import { TrafficChart, type HistoryPoint } from "./components/TrafficChart";
@@ -13,15 +14,13 @@ function App() {
   const [frame, setFrame] = useState<TelemetryFrame | null>(null);
   const [connected, setConnected] = useState(false);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
-  const tickRef = useRef(0);
 
   useEffect(() => {
     const disconnect = connectTelemetry(
       (next) => {
         setFrame(next);
-        tickRef.current += 1;
         setHistory((prev) => {
-          const point: HistoryPoint = { t: tickRef.current };
+          const point: HistoryPoint = { time: Date.now() };
           for (const lane of next.lanes) point[lane.id] = lane.total;
           const updated = [...prev, point];
           return updated.length > HISTORY_LENGTH ? updated.slice(-HISTORY_LENGTH) : updated;
@@ -36,6 +35,10 @@ function App() {
     triggerEmergency(laneId).catch((err) => console.error("emergency trigger failed", err));
   }, []);
 
+  const handleSourceSwitched = useCallback(() => {
+    setHistory([]);
+  }, []);
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -43,9 +46,12 @@ function App() {
           <h1>SmartFlow 2.0</h1>
           <p>Adaptive traffic signal optimization — lane-level congestion, waiting-time fairness, emergency priority.</p>
         </div>
-        <span className={`conn-pill ${connected ? "ok" : "down"}`}>
-          {connected ? "Telemetry connected" : "Reconnecting…"}
-        </span>
+        <div className="app-header-controls">
+          <VideoSourceSelector onSwitched={handleSourceSwitched} />
+          <span className={`conn-pill ${connected ? "ok" : "down"}`}>
+            {connected ? "Telemetry connected" : "Reconnecting…"}
+          </span>
+        </div>
       </header>
 
       <main className="app-grid">

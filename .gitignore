@@ -15,6 +15,7 @@ videos/*.mp4
 videos/*.mov
 videos/*.avi
 !videos/traffic.mp4
+!videos/gaithersburg.mp4
 output/
 .dist/
 yolo11*.pt
@@ -23,3 +24,5 @@ yolo11*.pt
 config/smartflow.json
 .DS_Store
 .env
+dashboard.png
+.playwright-mcp/

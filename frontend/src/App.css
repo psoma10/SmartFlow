@@ -44,6 +44,19 @@ button:active { transform: translateY(1px); }
 .app-header h1 { margin: 0 0 4px; font-size: 1.6rem; letter-spacing: -0.02em; }
 .app-header p { margin: 0; color: var(--text-dim); font-size: 0.9rem; max-width: 560px; }
 
+.app-header-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.source-selector {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8rem; color: var(--text-dim);
+}
+.source-selector select {
+  background: var(--panel-alt); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 10px; font-size: 0.8rem; cursor: pointer;
+}
+.source-selector select:disabled { opacity: 0.6; cursor: wait; }
+.source-switching { color: var(--accent); font-size: 0.72rem; }
+
 .conn-pill {
   padding: 6px 14px;
   border-radius: 999px;

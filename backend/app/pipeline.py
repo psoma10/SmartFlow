@@ -4,13 +4,13 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from .config import AppConfig, DetectorConfig
+from .config import AppConfig, DetectorConfig, save_config
 from .detector import VehicleDetector
 from .traffic import LaneAnalyzer, LaneGeometry, LaneStats
 from .traffic_signal import AdaptiveSignalController, SignalState
@@ -74,6 +74,13 @@ class VideoSource:
         self._cap.release()
 
 
+def _scaled_size(native_w: int, native_h: int, max_width: int) -> tuple[int, int]:
+    if native_w > max_width > 0:
+        scale = max_width / native_w
+        return (max_width, max(2, round(native_h * scale) // 2 * 2))
+    return (native_w, native_h)
+
+
 def _resolve_source(source: str) -> str | int:
     if source.isdigit():
         return int(source)
@@ -101,12 +108,7 @@ class TrafficPipeline:
         self._analyzer = LaneAnalyzer(config.lanes)
         self._signal = AdaptiveSignalController(config.lanes, config.signal)
         self._source = VideoSource(config.source, config.loop_video)
-        native_w, native_h = self._source.size
-        if native_w > config.max_frame_width > 0:
-            scale = config.max_frame_width / native_w
-            self._frame_size = (config.max_frame_width, max(2, round(native_h * scale) // 2 * 2))
-        else:
-            self._frame_size = (native_w, native_h)
+        self._frame_size = _scaled_size(*self._source.size, config.max_frame_width)
         self._geometry = LaneGeometry(config.lanes, *self._frame_size)
 
         self._lock = threading.Lock()
@@ -156,6 +158,32 @@ class TrafficPipeline:
             self._signal = AdaptiveSignalController(config.lanes, config.signal)
             self._geometry = LaneGeometry(config.lanes, *self._frame_size)
 
+    def switch_source(self, source: str) -> AppConfig:
+        """Swap the live video feed. Track/lane/signal state is deliberately
+        reset — carrying counts or an emergency flag across an unrelated clip
+        would misrepresent both."""
+        new_source = VideoSource(source, self._config.loop_video)
+        try:
+            new_frame_size = _scaled_size(*new_source.size, self._config.max_frame_width)
+            new_geometry = LaneGeometry(self._config.lanes, *new_frame_size)
+            with self._lock:
+                old_source = self._source
+                self._source = new_source
+                self._frame_size = new_frame_size
+                self._geometry = new_geometry
+                self._config = replace(self._config, source=source)
+                self._detector.reset()
+                self._registry.reset()
+                self._analyzer.reset()
+                self._signal.reset()
+                self._error = None
+        except Exception:
+            new_source.release()
+            raise
+        old_source.release()
+        save_config(self._config)
+        return self._config
+
     # -- main loop ----------------------------------------------------------
     def _run(self) -> None:
         target_dt = 1.0 / max(1.0, self._config.target_fps)
@@ -164,13 +192,16 @@ class TrafficPipeline:
 
         while self._running:
             loop_start = time.monotonic()
-            frame = self._source.read()
+            with self._lock:  # switch_source() swaps self._source; never read it unguarded
+                frame = self._source.read()
+                frame_size = self._frame_size
+                just_looped = self._source.consume_loop_flag()
             if frame is None:
                 log.info("video source exhausted, stopping pipeline")
                 self._running = False
                 break
-            if frame.shape[1] != self._frame_size[0]:
-                frame = cv2.resize(frame, self._frame_size, interpolation=cv2.INTER_AREA)
+            if frame.shape[1] != frame_size[0]:
+                frame = cv2.resize(frame, frame_size, interpolation=cv2.INTER_AREA)
 
             try:
                 detections = self._detector.track(frame)
@@ -191,7 +222,7 @@ class TrafficPipeline:
                 analyzer = self._analyzer
                 signal = self._signal
 
-            if self._source.consume_loop_flag():
+            if just_looped:
                 # Track IDs and lane state don't survive a rewind meaningfully:
                 # ByteTrack will re-associate end-of-clip vehicles with
                 # start-of-clip ones, corrupting dwell time, cumulative counts

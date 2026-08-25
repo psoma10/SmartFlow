@@ -174,3 +174,21 @@ def save_config(config: AppConfig) -> AppConfig:
         tmp.write_text(json.dumps(config.to_dict(), indent=2))
         tmp.replace(CONFIG_FILE)
     return config
+
+
+VIDEO_EXTENSIONS = frozenset({".mp4", ".mov", ".avi", ".webm", ".mkv"})
+
+
+def list_video_sources() -> tuple[str, ...]:
+    """Relative 'videos/<file>' paths for every clip available to switch to.
+    A whitelist, not a path resolver — the API validates requested sources
+    against this exact set rather than trusting a client-supplied path."""
+    if not VIDEO_DIR.is_dir():
+        return ()
+    return tuple(
+        sorted(
+            f"videos/{p.name}"
+            for p in VIDEO_DIR.iterdir()
+            if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS
+        )
+    )

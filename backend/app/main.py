@@ -7,6 +7,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from pathlib import Path
 
 import cv2
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -14,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
-from .config import AppConfig, LaneConfig, load_config, save_config
+from .config import AppConfig, LaneConfig, list_video_sources, load_config, save_config
 from .pipeline import TrafficPipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -86,6 +87,32 @@ def get_config() -> dict:
 
 def _pipeline_config() -> AppConfig:
     return _pipeline().config
+
+
+@app.get("/api/sources")
+def list_sources() -> dict:
+    sources = list_video_sources()
+    active = _pipeline_config().source
+    return {
+        "sources": [{"id": s, "label": Path(s).stem.replace("_", " ").title()} for s in sources],
+        "active": active,
+    }
+
+
+class SourcePayload(BaseModel):
+    source: str
+
+
+@app.post("/api/config/source")
+def switch_source(payload: SourcePayload) -> dict:
+    pipeline = _pipeline()
+    if payload.source not in list_video_sources():
+        raise HTTPException(404, f"unknown video source {payload.source!r}")
+    try:
+        updated = pipeline.switch_source(payload.source)
+    except RuntimeError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return updated.to_dict()
 
 
 class LaneUpdate(BaseModel):
